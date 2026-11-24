@@ -282,7 +282,7 @@ class Analytics:
                        SUM(f.deletions) AS deletions
                 FROM file_changes f JOIN commits c ON c.id = f.commit_id
                 WHERE {where} GROUP BY f.path
-                ORDER BY changes DESC, additions + deletions DESC, f.path LIMIT 10""",
+                ORDER BY changes DESC, SUM(f.additions + f.deletions) DESC, f.path LIMIT 10""",
             params,
         )
         if top_files:
