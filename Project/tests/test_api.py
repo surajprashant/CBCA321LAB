@@ -110,3 +110,4 @@ def test_pages_render(client, repo_id):
     cid = client.get(f"/api/repos/{repo_id}/contributors").get_json()[0]["contributor_id"]
     assert client.get(f"/repos/{repo_id}/contributors/{cid}").status_code == 200
     assert client.get("/repos/999").status_code == 404
+    assert client.get(f"/repos/{repo_id}/contributors/999").status_code == 404

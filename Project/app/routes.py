@@ -49,6 +49,13 @@ def _bad_import(err):
 # --------------------------------------------------------------------------- #
 # pages
 # --------------------------------------------------------------------------- #
+@pages.app_errorhandler(404)
+def _page_not_found(err):
+    if request.path.startswith("/api/"):
+        return jsonify({"error": err.description or "Not found"}), 404
+    return render_template("404.html", message=err.description), 404
+
+
 @pages.get("/")
 def home():
     return render_template("index.html")
@@ -61,8 +68,10 @@ def repo_page(repo_id: int):
 
 @pages.get("/repos/<int:repo_id>/contributors/<int:contributor_id>")
 def contributor_page(repo_id: int, contributor_id: int):
-    return render_template("contributor.html", repo=_repo_or_404(repo_id),
-                           contributor_id=contributor_id)
+    repo = _repo_or_404(repo_id)
+    if not _services()[0].contributor_in_repo(repo_id, contributor_id):
+        abort(404, description="Contributor not found")
+    return render_template("contributor.html", repo=repo, contributor_id=contributor_id)
 
 
 # --------------------------------------------------------------------------- #

@@ -155,3 +155,12 @@ def test_refresh_pulls_new_commits_into_clone(importer, repo_builder, allow_file
 def test_bad_url_gives_friendly_error(importer, tmp_path, allow_file_urls):
     with pytest.raises(ImportError_, match="Could not clone"):
         importer.import_source((tmp_path / "nope").as_uri())
+
+
+def test_contributor_ids_are_compact(store, sample_repo):
+    """One contributor row per person, without burning ids on every commit."""
+    repo_id = store.create_repository("sample", "src", str(sample_repo), None)
+    store.save_commits(repo_id, read_commits(str(sample_repo)))
+    ids = sorted(r["id"] for r in store.query("SELECT id FROM contributors"))
+    assert ids == [1, 2, 3]
+    assert store.contributor_in_repo(repo_id, 1) and not store.contributor_in_repo(repo_id, 99)

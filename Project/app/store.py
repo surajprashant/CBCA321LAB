@@ -84,6 +84,36 @@ class Store:
             conn.execute("DELETE FROM commits WHERE repo_id = ?", (repo_id,))
             conn.execute("DELETE FROM contributors WHERE repo_id = ?", (repo_id,))
 
+    def contributor_in_repo(self, repo_id: int, contributor_id: int) -> bool:
+        return bool(self.query("SELECT 1 FROM contributors WHERE id = ? AND repo_id = ?",
+                               (contributor_id, repo_id)))
+
+    @staticmethod
+    def _upsert_contributors(conn, repo_id: int, commits: list[Commit]) -> dict[str, int]:
+        """One row per email; the name from the most recent commit wins."""
+        latest: dict[str, tuple[int, str]] = {}
+        for commit in commits:
+            ts = int(commit.authored_at.timestamp())
+            if commit.author_email not in latest or ts > latest[commit.author_email][0]:
+                latest[commit.author_email] = (ts, commit.author_name)
+        ids: dict[str, int] = {}
+        for email, (ts, name) in latest.items():
+            row = conn.execute(
+                "SELECT id, name_ts FROM contributors WHERE repo_id = ? AND email = ?",
+                (repo_id, email),
+            ).fetchone()
+            if row is None:
+                ids[email] = conn.execute(
+                    "INSERT INTO contributors (repo_id, email, name, name_ts) VALUES (?, ?, ?, ?)",
+                    (repo_id, email, name, ts),
+                ).lastrowid
+            else:
+                ids[email] = row["id"]
+                if ts > row["name_ts"]:
+                    conn.execute("UPDATE contributors SET name = ?, name_ts = ? WHERE id = ?",
+                                 (name, ts, row["id"]))
+        return ids
+
     # ------------------------------------------------------------------ #
     # commits
     # ------------------------------------------------------------------ #
@@ -91,22 +121,9 @@ class Store:
         """Insert commits (skipping ones already stored). Returns number inserted."""
         inserted = 0
         with self.connection() as conn:
-            contributor_ids: dict[str, int] = {}
+            contributor_ids = self._upsert_contributors(conn, repo_id, commits)
             for commit in commits:
                 ts = int(commit.authored_at.timestamp())
-                conn.execute(
-                    """INSERT INTO contributors (repo_id, email, name, name_ts) VALUES (?, ?, ?, ?)
-                       ON CONFLICT(repo_id, email) DO UPDATE
-                       SET name = excluded.name, name_ts = excluded.name_ts
-                       WHERE excluded.name_ts > contributors.name_ts""",
-                    (repo_id, commit.author_email, commit.author_name, ts),
-                )
-                if commit.author_email not in contributor_ids:
-                    contributor_ids[commit.author_email] = conn.execute(
-                        "SELECT id FROM contributors WHERE repo_id = ? AND email = ?",
-                        (repo_id, commit.author_email),
-                    ).fetchone()["id"]
-
                 local = commit.authored_at
                 cur = conn.execute(
                     """INSERT OR IGNORE INTO commits
