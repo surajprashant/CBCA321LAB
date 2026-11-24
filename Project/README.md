@@ -1,5 +1,8 @@
 # Developer Contribution Visualizer
 
+> CBCA321 course project. Deliverable 1 (problem understanding) is
+> `1. Problem understanding.pdf` in this folder; Assessments 2 and 3 are in `output/`.
+
 A web dashboard that reads the history of any Git repository (a folder on your
 laptop or a public Git URL) and shows **who contributed what, when, and where**:
 commits and lines per developer, activity over time, the hours the team works,
@@ -13,7 +16,7 @@ the files each person owns, and how dependent the project is on a few people.
 
 | Feature | What it does |
 |---|---|
-| **Import a repository** | Paste a local path (any sub-folder works) or a public Git URL (`https://`, `git@`, `ssh://`). URLs are cloned into `data/clones/`. |
+| **Import a repository** | Paste a local path (any sub-folder works) or a public Git URL (`https://`, `git@`, `ssh://`). **Only metadata is stored**: local folders are read in place, and URLs are read from a temporary bare clone that is deleted straight after import. |
 | **Incremental refresh** | Only commits after the last imported one are parsed. If history was rewritten (force-push), the repo is rebuilt automatically. |
 | **Summary tiles** | Commits, contributors, lines added/deleted, active days, files touched, **bus factor**. |
 | **Commits over time** | Stacked bar chart of the top 3/5/8 contributors (rest folded into “Others”), daily/weekly/monthly or automatic buckets. |
@@ -39,12 +42,12 @@ are grouped by e-mail (case-insensitive) and respect the repository's `.mailmap`
 Requirements: **Python 3.10+** and **Git** on your PATH.
 
 ```bash
-git clone <your-repo-url>
-cd developer-contribution-visualizer
-python -m venv .venv
+git clone https://github.com/surajprashant/CBCA321LAB.git
+cd CBCA321LAB/Project
+python3 -m venv .venv
 # Windows: .venv\Scripts\activate      macOS/Linux: source .venv/bin/activate
 pip install -r requirements.txt
-python run.py
+python3 run.py
 ```
 
 Open **http://127.0.0.1:5000** and import a repository.
@@ -52,7 +55,7 @@ Open **http://127.0.0.1:5000** and import a repository.
 **Try it with demo data** (6 developers, 320 commits over 8 months, always the same):
 
 ```bash
-python scripts/make_demo_repo.py demo-repo
+python3 scripts/make_demo_repo.py demo-repo
 ```
 
 Then import the printed path. You can also import this project's own folder to
@@ -61,11 +64,17 @@ visualise your own commit history.
 **Run the tests**
 
 ```bash
-python -m pytest -v
+python3 -m pytest -v
+```
+
+**Check the performance requirement** (10,000 commits in under 5 s):
+
+```bash
+python3 scripts/benchmark.py
 ```
 
 Settings (optional environment variables): `DCV_DATABASE` (SQLite file, default
-`data/dcv.db`), `DCV_CLONE_DIR` (default `data/clones`), `PORT` (default 5000).
+`data/dcv.db`), `DCV_CLONE_DIR` (temporary clone area, default `data/tmp`), `PORT` (default 5000).
 
 ---
 
@@ -90,12 +99,13 @@ app/
   git_parser.py    runs `git log --numstat`, parses output into Commit objects
   db.py            SQLite schema
   store.py         data-access layer (all writes)
-  importer.py      import / clone / incremental refresh / delete
+  importer.py      import / temporary clone / incremental refresh / delete
   analytics.py     summary, leaderboard, timeline, heatmap, drill-down, CSV
   routes.py        page routes + REST API
   templates/       Jinja pages
   static/          CSS, JS, bundled Chart.js (works offline)
 scripts/make_demo_repo.py   reproducible demo repository
+scripts/benchmark.py        10,000-commit performance check
 tests/                      pytest suite (unit + API)
 output/                     assessment documents and LLM interaction log
 ```
@@ -107,7 +117,7 @@ output/                     assessment documents and LLM interaction log
 | GET | `/api/repos` | all repositories |
 | POST | `/api/repos` | body `{"source": "<path or URL>"}` → `201` new, `200` already imported (refreshed) |
 | POST | `/api/repos/<id>/refresh` | `{repository, new_commits}` |
-| DELETE | `/api/repos/<id>` | removes data and any clone; never touches your own folders |
+| DELETE | `/api/repos/<id>` | removes stored metadata; never touches your own folders |
 | GET | `/api/repos/<id>/summary` | `?since=YYYY-MM-DD&until=YYYY-MM-DD` |
 | GET | `/api/repos/<id>/contributors` | `&sort=commits\|additions\|deletions\|active_days\|last_day\|name` |
 | GET | `/api/repos/<id>/timeline` | `&granularity=auto\|day\|week\|month&top=1..8` |
@@ -126,14 +136,14 @@ Python 3 · Flask 3 · SQLite (`sqlite3`) · Git CLI via `subprocess` · Chart.j
 
 ## Testing
 
-94 tests in four files, all running on throwaway Git repositories with known
+95 tests in four files, all running on throwaway Git repositories with known
 authors, dates and line counts, so every number on the dashboard is checked
 against a hand-calculated answer.
 
 | File | Covers |
 |---|---|
 | `test_git_parser.py` | rename paths, binary files, malformed log records, empty repos, `since_sha` |
-| `test_store_and_importer.py` | contributor merging by e-mail, idempotent saves, cascade delete, URL detection, incremental refresh, history rewrite, cloning, bad input |
+| `test_store_and_importer.py` | contributor merging by e-mail, idempotent saves, cascade delete, URL detection, incremental refresh, history rewrite, **no source code left after URL import**, bad input |
 | `test_analytics.py` | bus factor, bucketing, summary, filters, sort whitelist, stable colours, timeline “Others”, heatmap cells, ownership %, CSV formula-injection guard |
 | `test_api.py` | every endpoint, status codes, validation errors, page rendering |
 
@@ -159,6 +169,12 @@ against a hand-calculated answer.
 - **Depth over breadth.** Instead of many half-finished charts, the import →
   analytics → dashboard → drill-down path works end to end, with filters,
   refresh and export built on the same API.
+- **Requirements can conflict.** Deliverable 1 asked for both “fetch via the Git
+  API” and “10,000 commits in under 5 s”. GitHub needs one API call per commit to
+  get line counts, so both can't hold at once. Reading a temporary bare clone and
+  deleting it straight away keeps the security rule (no stored source code) and
+  passes the benchmark (10,000 commits in about 3 s; Flask's 5,566 commits from
+  GitHub in about 4 s).
 - **Incremental refresh needs a fallback.** Reading only `last_sha..HEAD` is fast,
   but if someone force-pushes, the old SHA disappears. `git merge-base
   --is-ancestor` detects this and the repo is rebuilt from scratch.
