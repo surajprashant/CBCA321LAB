@@ -1,5 +1,8 @@
 # Assessment 2 — Architecture & First Deliverable
 
+> Builds on Deliverable 1 (`../1. Problem understanding.pdf`): problem, stakeholders,
+> requirements and constraints. Section 9 lists where this design changes that plan and why.
+
 ## 1. Project title and description
 
 **Developer Contribution Visualizer**
@@ -27,7 +30,7 @@ answer from `git log` alone:
 | | Analytics service | Aggregates commits into summaries, leaderboards, timelines, heatmaps, ownership |
 | | REST API | JSON endpoints that the UI calls |
 | **Persistence** | SQLite store | Tables for repositories, contributors, commits, file changes |
-| | Clone cache | `data/clones/` folder holding cloned remote repositories |
+| | Temporary clone area | `data/tmp/`: short-lived bare clones of URL repositories, deleted right after import (no source code is kept) |
 
 ## 3. Architecture
 
@@ -66,6 +69,8 @@ flowchart TD
 - A JSON API lets the same data feed the dashboard, the CSV export, and later a
   CLI or a GitHub integration without changing the logic layer.
 - It runs as one process on a laptop with no external services, which suits a demo.
+- It follows the Deliverable 1 interaction flow: frontend → API gateway (Flask routes)
+  → data parser (importer + git parser) → database cache → JSON back to the frontend.
 
 ## 4. Minimal feature set for the first deliverable (4 days)
 
@@ -82,12 +87,14 @@ bus factor, folder ownership.
 
 ## 5. Users who benefit
 
-| User | Benefit |
+The stakeholders from Deliverable 1, plus one group specific to our course setting:
+
+| User | Benefit from the first deliverable |
 |---|---|
-| **Project managers / team leads** | See workload distribution and spot overloaded or inactive members |
+| **Engineering managers** | Team velocity (timeline), bottlenecks (bus factor, file ownership), objective per-person numbers |
+| **Developers / contributors** | Their work shown fairly: commits, active days and lines side by side, **no single “score”** that penalises low-LOC debugging or refactoring |
+| **Project managers** | Activity over time with date-range filters to compare against sprint timelines |
 | **Course instructors / evaluators** | Check that every student in a group project actually contributed |
-| **Open-source maintainers** | Identify core contributors and knowledge silos (bus factor) |
-| **Individual developers** | Review and showcase their own contribution history |
 
 ## 6. Components of the first deliverable
 
@@ -135,6 +142,8 @@ class Importer:
     def __init__(self, store: Store, clone_dir: str)
     def import_source(source: str) -> dict      # local path or URL → repository dict
     def refresh(repo_id: int) -> dict           # incremental: only new commits
+    def delete(repo_id: int) -> bool            # removes metadata only
+    # URLs: temporary bare clone → parse → save metadata → clone deleted
 class ImportError_(Exception)                   # bad path, bad URL, git failure
 ```
 
@@ -186,10 +195,23 @@ erDiagram
 | Concern | Choice | Reason |
 |---|---|---|
 | Language | **Python 3.10+** | Simple subprocess + data handling, good test tooling |
-| Web framework | **Flask 3** | Lightweight, built-in test client |
-| Database | **SQLite** (Python `sqlite3`) | Zero setup, single file, real SQL aggregates |
-| Git access | **git CLI** via `subprocess` | Reads any repo (local or cloned), respects `.mailmap` |
-| Charts | **Chart.js 4** (bundled locally) | Works offline during the demo |
-| Frontend | HTML, CSS, vanilla JavaScript | No build step |
+| Web framework | **Flask 3** | Lightweight, built-in test client (Deliverable 1 listed FastAPI; see §9) |
+| Database | **SQLite** (Python `sqlite3`) | Zero setup, single file, real SQL aggregates (Deliverable 1 listed PostgreSQL; see §9) |
+| Git access | **git CLI** via `subprocess` | Reads any repo (local or temporary bare clone), respects `.mailmap` |
+| Charts | **Chart.js 4** (bundled locally) | As planned in Deliverable 1; works offline during the demo |
+| Frontend | HTML, CSS, vanilla JavaScript | No build step (Deliverable 1 listed React/Vue; see §9) |
 | Testing | **pytest**, Flask test client | Unit + API tests on throwaway Git repos |
 | Tools | Git, GitHub, VS Code | Version control and hosting |
+
+## 9. Changes from Deliverable 1 (assumptions and modifications)
+
+| Deliverable 1 said | First deliverable does | Why |
+|---|---|---|
+| Fetch commits through the GitHub/GitLab **API** | Read history with the **git CLI**: local folders in place, URLs through a temporary *bare* clone | GitHub's API needs one call per commit for line counts; 10,000 commits would exceed the 5,000 requests/hour limit and the 5-second target. git gets the same data in one command, and works for any provider. |
+| “Must never clone or store source code locally” | The temporary clone has no files checked out and is **deleted immediately** after import; only metadata (author, date, file path, line counts, message) is stored | Keeps the intent of the rule (no source code kept) while meeting the performance requirement. Covered by a unit test. |
+| OAuth sign-in and API tokens | Not in the first deliverable: public URLs and local folders only | Single-user laptop app for now; OAuth and private-repo tokens come with the GitHub API integration. |
+| PostgreSQL | SQLite | Same SQL and relational schema, no server to install. Moving to PostgreSQL later only changes `db.py`. |
+| React/Vue + FastAPI/Express | Flask templates + vanilla JS + Chart.js | Fewer moving parts for a 4-day deliverable; the REST API is already separate, so a React frontend can be added later. |
+| Jira issue-key mapping, PR and issue data | Later deliverable | Not needed for the core “who did what, when” question. |
+| Assumption 1: consistent e-mails | E-mails are matched case-insensitively and `.mailmap` is honoured | Reduces wrongly split contributors; a merge screen in the UI is future work. |
+| Performance: 10,000 commits in under 5 s | Measured with `scripts/benchmark.py` | Result recorded in Assessment-3. |
