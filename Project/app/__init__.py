@@ -16,7 +16,7 @@ def create_app(config: dict | None = None) -> Flask:
     app = Flask(__name__)
     app.config.update(
         DATABASE=os.environ.get("DCV_DATABASE", os.path.join(BASE_DIR, "data", "dcv.db")),
-        CLONE_DIR=os.environ.get("DCV_CLONE_DIR", os.path.join(BASE_DIR, "data", "clones")),
+        CLONE_DIR=os.environ.get("DCV_CLONE_DIR", os.path.join(BASE_DIR, "data", "tmp")),
         JSON_SORT_KEYS=False,
     )
     if config:

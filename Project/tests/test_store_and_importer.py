@@ -136,16 +136,18 @@ def allow_file_urls(monkeypatch):
     monkeypatch.setattr(importer_module, "URL_PATTERN", re.compile(r"^file://"))
 
 
-def test_clone_from_url_and_delete_cleans_up(importer, sample_repo, allow_file_urls):
+def test_url_import_stores_no_source_code(importer, sample_repo, allow_file_urls):
+    """Deliverable-1 security rule: only metadata is kept, the temporary clone is deleted."""
     result = importer.import_source(sample_repo.as_uri())
     assert result["repository"]["commit_count"] == 6
-    clone_path = result["repository"]["path"]
-    assert clone_path.startswith(importer.clone_dir)
+    assert result["repository"]["path"] == sample_repo.as_uri()
+    assert os.listdir(importer.clone_dir) == []  # nothing left behind
+    importer.refresh(result["repository"]["id"])
+    assert os.listdir(importer.clone_dir) == []
     assert importer.delete(result["repository"]["id"])
-    assert not os.path.exists(clone_path)
 
 
-def test_refresh_pulls_new_commits_into_clone(importer, repo_builder, allow_file_urls):
+def test_refresh_reads_new_commits_from_url(importer, repo_builder, allow_file_urls):
     repo_builder.commit("A", "a@x", "2026-01-01T10:00:00+00:00", {"a.txt": "1\n"})
     repo_id = importer.import_source(repo_builder.path.as_uri())["repository"]["id"]
     repo_builder.commit("B", "b@x", "2026-01-02T10:00:00+00:00", {"b.txt": "2\n"})
@@ -155,6 +157,14 @@ def test_refresh_pulls_new_commits_into_clone(importer, repo_builder, allow_file
 def test_bad_url_gives_friendly_error(importer, tmp_path, allow_file_urls):
     with pytest.raises(ImportError_, match="Could not clone"):
         importer.import_source((tmp_path / "nope").as_uri())
+    assert os.listdir(importer.clone_dir) == []  # failed clone cleaned up too
+
+
+def test_delete_never_touches_local_folder(importer, sample_repo):
+    repo_id = importer.import_source(str(sample_repo))["repository"]["id"]
+    assert importer.delete(repo_id)
+    assert (sample_repo / "src" / "app.py").exists()
+    assert not importer.delete(repo_id)
 
 
 def test_contributor_ids_are_compact(store, sample_repo):
