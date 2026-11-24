@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}{{ repo.name }} · Contribution Visualizer{% endblock %}
+{% block body_attrs %}data-repo-id="{{ repo.id }}"{% endblock %}
+{% block crumbs %}<span>/</span><a href="{{ url_for('pages.home') }}">Repositories</a><span>/</span><span>{{ repo.name }}</span>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{{ repo.name }}</h1>
+    <div class="sub mono">{{ repo.source }}</div>
+  </div>
+  <div class="actions">
+    <button type="button" id="refresh-btn" title="Read new commits since the last import">↻ Refresh</button>
+    <a class="btn" id="export-btn" href="#">⇩ Export CSV</a>
+  </div>
+</div>
+
+<div class="filters" id="filters"></div>
+<div class="kpis" id="kpis"></div>
+
+<section class="card" style="margin-bottom:16px">
+  <div class="card-head">
+    <div>
+      <h2>Commits over time</h2>
+      <div class="card-sub">Top contributors stacked; everyone else folded into “Others”. Merge commits excluded.</div>
+    </div>
+    <div class="actions">
+      <select id="granularity" aria-label="Time bucket">
+        <option value="auto">Auto</option><option value="day">Daily</option>
+        <option value="week">Weekly</option><option value="month">Monthly</option>
+      </select>
+      <select id="top" aria-label="Contributors shown">
+        <option value="3">Top 3</option><option value="5" selected>Top 5</option><option value="8">Top 8</option>
+      </select>
+    </div>
+  </div>
+  <div class="chart-box"><canvas id="timeline" aria-label="Commits over time chart" role="img"></canvas></div>
+</section>
+
+<div class="grid grid-3-2">
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>Contributor leaderboard</h2>
+        <div class="card-sub">Click a column to sort, a row to open that developer.</div>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="board">
+        <thead><tr>
+          <th class="sortable" data-sort="name">Contributor</th>
+          <th class="num sortable" data-sort="commits">Commits</th>
+          <th class="num sortable" data-sort="additions">Added</th>
+          <th class="num sortable" data-sort="deletions">Deleted</th>
+          <th class="num sortable" data-sort="active_days">Active days</th>
+          <th class="num sortable" data-sort="last_day">Last commit</th>
+          <th class="num">Share</th>
+        </tr></thead>
+        <tbody><tr><td colspan="7" class="loading">Loading…</td></tr></tbody>
+      </table>
+    </div>
+  </section>
+  <section class="card">
+    <div class="card-head">
+      <div>
+        <h2>When the team works</h2>
+        <div class="card-sub" id="peak">Commits by weekday and hour (author's local time)</div>
+      </div>
+    </div>
+    <div id="heatmap"></div>
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/repo.js') }}"></script>{% endblock %}

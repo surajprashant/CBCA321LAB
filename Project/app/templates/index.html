@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card hero">
+  <h1>See who built what, and when.</h1>
+  <p>Point the visualizer at any Git repository. It reads the full commit history and shows each
+     developer's commits, lines changed, working hours and the files they own.</p>
+  <form class="import-form" id="import-form" autocomplete="off">
+    <input type="text" id="source" name="source" aria-label="Repository path or URL"
+           placeholder="C:\projects\my-app   or   https://github.com/user/repo.git" required>
+    <button type="submit" class="btn-primary" id="import-btn">Import repository</button>
+  </form>
+  <div class="hint">
+    Local folder: <code>/home/me/my-project</code> &nbsp;·&nbsp; Public URL: <code>https://github.com/pallets/flask.git</code>
+    &nbsp;·&nbsp; Importing an existing source refreshes it.
+  </div>
+</section>
+
+<h2 class="section-title">Imported repositories</h2>
+<div id="repos" class="repo-list"><div class="loading">Loading…</div></div>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/home.js') }}"></script>{% endblock %}

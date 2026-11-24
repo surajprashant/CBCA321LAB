@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Contributor · {{ repo.name }}{% endblock %}
+{% block body_attrs %}data-repo-id="{{ repo.id }}" data-contributor-id="{{ contributor_id }}"{% endblock %}
+{% block crumbs %}<span>/</span><a href="{{ url_for('pages.home') }}">Repositories</a><span>/</span><a id="repo-link" href="{{ url_for('pages.repo_page', repo_id=repo.id) }}">{{ repo.name }}</a><span>/</span><span id="crumb-name">Contributor</span>{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div class="person">
+    <div class="avatar" id="avatar"></div>
+    <div>
+      <h1 id="name">Loading…</h1>
+      <div class="sub" id="email"></div>
+    </div>
+  </div>
+  <div class="actions"><a class="btn" id="back-link" href="{{ url_for('pages.repo_page', repo_id=repo.id) }}">← Back to {{ repo.name }}</a></div>
+</div>
+
+<div class="filters" id="filters"></div>
+<div class="kpis" id="kpis"></div>
+
+<div class="grid grid-3-2" style="margin-bottom:16px">
+  <section class="card">
+    <div class="card-head"><div><h2>Commits over time</h2><div class="card-sub">Merge commits excluded.</div></div></div>
+    <div class="chart-box short"><canvas id="timeline" role="img" aria-label="Commits over time"></canvas></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><div><h2>Working hours</h2><div class="card-sub" id="peak"></div></div></div>
+    <div id="heatmap"></div>
+  </section>
+</div>
+
+<div class="grid grid-2" style="margin-bottom:16px">
+  <section class="card">
+    <div class="card-head"><div><h2>Areas of the codebase</h2><div class="card-sub">Share of this person's changed lines, by top-level folder.</div></div></div>
+    <div class="bars" id="folders"></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><div><h2>Most-changed files</h2><div class="card-sub">Ownership = this person's share of all lines changed in that file.</div></div></div>
+    <div class="table-wrap">
+      <table id="files"><thead><tr><th>File</th><th class="num">Commits</th><th class="num">+ / −</th><th class="num">Ownership</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-head"><div><h2>Recent commits</h2><div class="card-sub">Latest 20 in the selected range.</div></div></div>
+  <ul class="commits" id="recent"></ul>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{{ url_for('static', filename='js/contributor.js') }}"></script>{% endblock %}
