@@ -102,6 +102,7 @@ input:focus, select:focus, button:focus-visible { outline: 2px solid #86b6ef; ou
 .card .card-sub { color: var(--text-3); font-size: 12.5px; margin-top: 2px; }
 .card-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 14px; }
 .grid { display: grid; gap: 16px; }
+.grid > * { min-width: 0; }
 .grid-2 { grid-template-columns: 1fr 1fr; }
 .grid-3-2 { grid-template-columns: 3fr 2fr; }
 @media (max-width: 900px) { .grid-2, .grid-3-2 { grid-template-columns: 1fr; } }
@@ -153,7 +154,7 @@ input:focus, select:focus, button:focus-visible { outline: 2px solid #86b6ef; ou
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
 th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--grid); }
 th { color: var(--text-2); font-weight: 500; font-size: 12.5px; white-space: nowrap; }
-th.num, td.num { text-align: right; }
+th.num, td.num { text-align: right; white-space: nowrap; }
 th.sortable { cursor: pointer; user-select: none; }
 th.sortable:hover { color: var(--text); }
 th.sorted { color: var(--text); }
@@ -166,12 +167,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .who .name { font-weight: 500; }
 .who .email { color: var(--text-3); font-size: 12px; }
 .share { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-.share .bar { width: 80px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+.share .bar { width: 56px; height: 6px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
 .share .bar i { display: block; height: 100%; border-radius: 3px; }
 .table-wrap { overflow-x: auto; }
 
 /* ---------- heatmap ---------- */
-.heatmap { display: grid; grid-template-columns: 34px repeat(24, 1fr); gap: 3px; font-size: 11px; color: var(--text-3); }
+.heatmap { display: grid; grid-template-columns: 30px repeat(24, minmax(0, 1fr)); gap: 3px; font-size: 11px; color: var(--text-3); }
 .heatmap .cell { aspect-ratio: 1; border-radius: 3px; background: #efeeea; position: relative; }
 .heatmap .cell:hover { outline: 2px solid var(--text); outline-offset: 0; z-index: 1; }
 .heatmap .rl { display: flex; align-items: center; }
